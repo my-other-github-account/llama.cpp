@@ -221,7 +221,11 @@ struct llama_hparams {
     bool eagle3_norm_before_residual = false;
 
     // DFlash draft model
-    std::array<int, 5> dflash_target_layer_ids = {};
+    // Use a fixed-size array (kept trivially-copyable per llama_hparams contract);
+    // n_dflash_target_layer_ids gives the actual count.
+    static constexpr size_t MAX_DFLASH_TARGET_LAYERS = 16;
+    std::array<int, MAX_DFLASH_TARGET_LAYERS> dflash_target_layer_ids = {};
+    uint32_t n_dflash_target_layer_ids = 0;
     uint32_t dflash_block_size     = 16;
     uint32_t dflash_mask_token_id  = 0;
 

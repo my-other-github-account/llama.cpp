@@ -1,7 +1,7 @@
 #include "models.h"
 
 ggml_tensor * llm_build_dflash_encode::build_inp_embd() const {
-    const int64_t n_target_layer_ids = (int64_t) hparams.dflash_target_layer_ids.size();
+    const int64_t n_target_layer_ids = (int64_t) hparams.n_dflash_target_layer_ids;
     const int64_t n_embd_target_features = n_target_layer_ids * n_embd;
 
     auto inp_target = std::make_unique<llm_graph_input_embd>(n_embd_target_features);

@@ -2794,15 +2794,26 @@ void llama_model::load_hparams(llama_model_loader & ml) {
                 ml.get_key(LLM_KV_DFLASH_BLOCK_SIZE, hparams.dflash_block_size, false);
                 ml.get_key(LLM_KV_DFLASH_MASK_TOKEN_ID, hparams.dflash_mask_token_id, false);
 
-                if (!ml.get_key_or_arr(LLM_KV_DFLASH_TARGET_LAYER_IDS, hparams.dflash_target_layer_ids, 5, false)) {
+                if (!ml.get_arr_n(LLM_KV_DFLASH_TARGET_LAYER_IDS, hparams.n_dflash_target_layer_ids, false)) {
                     throw std::runtime_error("DFlash model requires 'target_layer_ids' in GGUF metadata");
                 }
-                LLAMA_LOG_INFO("%s: DFlash extract_layers = [%d, %d, %d, %d, %d]\n", __func__,
-                               hparams.dflash_target_layer_ids[0],
-                               hparams.dflash_target_layer_ids[1],
-                               hparams.dflash_target_layer_ids[2],
-                               hparams.dflash_target_layer_ids[3],
-                               hparams.dflash_target_layer_ids[4]);
+                if (hparams.n_dflash_target_layer_ids > llama_hparams::MAX_DFLASH_TARGET_LAYERS) {
+                    throw std::runtime_error(format("DFlash target_layer_ids has %u entries; max supported is %zu",
+                            hparams.n_dflash_target_layer_ids,
+                            (size_t) llama_hparams::MAX_DFLASH_TARGET_LAYERS));
+                }
+                if (!ml.get_arr(LLM_KV_DFLASH_TARGET_LAYER_IDS, hparams.dflash_target_layer_ids, false)) {
+                    throw std::runtime_error("DFlash model requires 'target_layer_ids' in GGUF metadata");
+                }
+                {
+                    std::string ids_str;
+                    for (uint32_t i = 0; i < hparams.n_dflash_target_layer_ids; ++i) {
+                        if (i) ids_str += ", ";
+                        ids_str += std::to_string(hparams.dflash_target_layer_ids[i]);
+                    }
+                    LLAMA_LOG_INFO("%s: DFlash extract_layers = [%s] (%u layers)\n", __func__,
+                                   ids_str.c_str(), hparams.n_dflash_target_layer_ids);
+                }
 
                 LLAMA_LOG_INFO("%s: DFlash block_size = %u, mask_token_id = %u\n",
                                __func__, hparams.dflash_block_size, hparams.dflash_mask_token_id);
@@ -7365,7 +7376,7 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
                 } break;
             case LLM_ARCH_DFLASH:
                 {
-                    const int64_t n_target_layer_ids = (int64_t)hparams.dflash_target_layer_ids.size();
+                    const int64_t n_target_layer_ids = (int64_t) hparams.n_dflash_target_layer_ids;
                     const int64_t n_embd_target_features = n_target_layer_ids * n_embd;
 
                     fc = create_tensor(tn(LLM_TENSOR_DFLASH_FC, "weight"), {n_embd_target_features, n_embd}, 0);
